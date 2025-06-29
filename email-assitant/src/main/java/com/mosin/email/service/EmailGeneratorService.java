@@ -1,20 +1,25 @@
 package com.mosin.email.service;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mosin.email.dto.EmailRequestDto;
 
 import io.micrometer.common.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+@Slf4j
 @Service
 public class EmailGeneratorService {
 	
@@ -25,11 +30,29 @@ public class EmailGeneratorService {
 	private String geminiApiKey;
 
 	public ResponseEntity<Object> generateEmailContent(EmailRequestDto emailRequestDto) {
-		String promt = buildPromt(emailRequestDto);
+		String prompt = buildPromt(emailRequestDto);
+		String responseText = callGemini(prompt);
+		String extractedText = extractGeminiResponse(responseText);
+		log.info("[EmailGeneratorService] [generateEmailContent] Final text: " + extractedText);
 		
-		String s = callGemeni(promt);
-		return null;
+		return ResponseEntity.ok().body(extractedText);
 	
+	}
+
+	private String extractGeminiResponse(String responseText) {
+		try {
+			ObjectMapper objectMapper = new ObjectMapper();
+			JsonNode rootNode = objectMapper.readTree(responseText);
+			
+			return rootNode.path("candidates").get(0)
+					.path("content")
+					.path("parts").get(0)
+					.path("text").asText();
+		} catch (Exception e) {
+			log.error("[EmailGeneratorService] [generateEmailContent] C*ud gye guru...");
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	private String buildPromt(EmailRequestDto emailRequestDto) {
@@ -39,33 +62,69 @@ public class EmailGeneratorService {
 				+ " Please don't generate email subject line ");
 		
 		if(StringUtils.isNotEmpty(emailRequestDto.getTone())) {
-			prompt.append("Use a ").append(emailRequestDto.getTone()).append(" tone.");
+			prompt.append("Use a ").append(emailRequestDto.getTone()).append(" tone. ");
 		}
 		prompt.append("\n Original email:- \n").append(emailRequestDto.getEmailContent());
-		return null;
+		log.info("[EmailGeneratorService] [buildPromt] Final prompt: " + prompt.toString());
+		
+		return prompt.toString();
 	}
 	
-	private String callGemeni(String promt) {
-		try {
-			OkHttpClient client = new OkHttpClient().newBuilder()
-					  .build();
-					MediaType mediaType = MediaType.parse("application/json");
-					RequestBody body = RequestBody.create(mediaType,
-							"{\r\n    \"contents\": "
-							+ "[\r\n      {\r\n        \"parts\": [\r\n          {\r\n            "
-							+ "\"text\": \"Explain how AI works in detail\"\r\n          }\r\n        ]\r\n      "
-							+ "}\r\n    ]\r\n  }");
-					Request request = new Request.Builder()
-					  .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyC1mBd-bi9dsI4772DezboWArHnwlrrWKQ")
-					  .method("POST", body)
-					  .addHeader("Content-Type", "application/json")
-					  .build();
-					Response response = client.newCall(request).execute();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		return null;
-	}
+	private String callGemini(String prompt) {
+        try {
+//            OkHttpClient client = new OkHttpClient().newBuilder().build();
+
+        	OkHttpClient client = new OkHttpClient.Builder()
+        		    .connectTimeout(10, TimeUnit.SECONDS)
+        		    .readTimeout(15, TimeUnit.SECONDS)
+        		    .writeTimeout(15, TimeUnit.SECONDS)
+        		    .build();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            String jsonBody = "{\n" +
+                    "  \"contents\": [\n" +
+                    "    {\n" +
+                    "      \"parts\": [\n" +
+                    "        {\n" +
+                    "          \"text\": \"" + escapeJson(prompt) + "\"\n" +
+                    "        }\n" +
+                    "      ]\n" +
+                    "    }\n" +
+                    "  ]\n" +
+                    "}";
+
+            @SuppressWarnings("deprecation")
+			RequestBody body = RequestBody.create(mediaType, jsonBody);
+            String fullUrl = geminiApiUrl + "?key=" + geminiApiKey;
+
+            Request request = new Request.Builder()
+                    .url(fullUrl)
+                    .method("POST", body)
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+
+            log.info("Before calling...");
+            try (Response response = client.newCall(request).execute()) {
+                if (response.body() != null) {
+                    return response.body().string();
+                } else {
+                    return "Empty response";
+                }
+            }
+
+        } catch (IOException e) {
+        	log.error("[EmailGeneratorService] [callGemini] C*ud gye guru...");
+            e.printStackTrace();
+            
+            return "Error occurred while calling Gemini API";
+        }
+    }
+	
+	private String escapeJson(String text) {
+        return text
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "");
+    }
 }
