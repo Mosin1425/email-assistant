@@ -14,7 +14,7 @@ import com.mosin.email.service.EmailGeneratorService;
 
 @RestController
 @RequestMapping("/api/email")
-//@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*")
 public class EmailGeneratorController {
 
 	@Autowired

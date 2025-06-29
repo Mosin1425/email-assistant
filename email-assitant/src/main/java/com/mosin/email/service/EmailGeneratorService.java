@@ -30,7 +30,7 @@ public class EmailGeneratorService {
 	private String geminiApiKey;
 
 	public ResponseEntity<Object> generateEmailContent(EmailRequestDto emailRequestDto) {
-		String prompt = buildPromt(emailRequestDto);
+		String prompt = buildPrompt(emailRequestDto);
 		String responseText = callGemini(prompt);
 		String extractedText = extractGeminiResponse(responseText);
 		log.info("[EmailGeneratorService] [generateEmailContent] Final text: " + extractedText);
@@ -55,20 +55,28 @@ public class EmailGeneratorService {
 		return null;
 	}
 
-	private String buildPromt(EmailRequestDto emailRequestDto) {
-		StringBuilder prompt = new StringBuilder();
-		
-		prompt.append("Genereate a professional email reply for the following email content."
-				+ " Please don't generate email subject line ");
-		
-		if(StringUtils.isNotEmpty(emailRequestDto.getTone())) {
-			prompt.append("Use a ").append(emailRequestDto.getTone()).append(" tone. ");
-		}
-		prompt.append("\n Original email:- \n").append(emailRequestDto.getEmailContent());
-		log.info("[EmailGeneratorService] [buildPromt] Final prompt: " + prompt.toString());
-		
-		return prompt.toString();
+	private String buildPrompt(EmailRequestDto emailRequestDto) {
+	    StringBuilder prompt = new StringBuilder();
+
+	    prompt.append("You are a professional email assistant. ")
+	          .append("Generate a well-structured and contextually appropriate reply to the email provided below. ")
+	          .append("Avoid generating a subject line. ");
+
+	    if (StringUtils.isNotEmpty(emailRequestDto.getTone())) {
+	        prompt.append("Use a ").append(emailRequestDto.getTone()).append(" tone throughout the response. ");
+	    }
+
+	    prompt.append("Respond directly to the message content. ")
+	          .append("Ensure the reply sounds human, polite, and complete.\n\n");
+
+	    prompt.append("Original Email:\n")
+	          .append(emailRequestDto.getEmailContent());
+
+	    log.info("[EmailGeneratorService] [buildPrompt] Final prompt: " + prompt.toString());
+
+	    return prompt.toString();
 	}
+
 	
 	private String callGemini(String prompt) {
         try {
