@@ -1,0 +1,6 @@
+docker build -t email-assistant:latest .
+docker run -p 8080:10000 -e "PORT=10000" -e "GEMINI_API_KEY=AIzaSyCY2VZ2Qvx0LVZGDb66dQOd7kqOyWcalUA" email-assistant:latest
+
+
+
+render url - https://email-assistant-backend-s4p8.onrender.com
