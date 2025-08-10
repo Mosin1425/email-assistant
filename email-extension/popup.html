@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Email Generator Settings</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 12px;
+      width: 280px;
+      transition: background 0.2s, color 0.2s;
+    }
+    body.light {
+      background: #ffffff;
+      color: #000000;
+    }
+    body.dark {
+      background: #1e1e1e;
+      color: #ffffff;
+    }
+    h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+    p {
+      font-size: 13px;
+      margin: 0 0 12px;
+    }
+    label {
+      display: block;
+      margin: 8px 0 4px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    select {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    .logs {
+      font-size: 12px;
+      margin-top: 12px;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid #888;
+      padding: 6px;
+      border-radius: 4px;
+    }
+    .log-entry {
+      margin-bottom: 6px;
+      border-bottom: 1px solid #666;
+      padding-bottom: 4px;
+    }
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button, .theme-toggle, a.button-link {
+      padding: 6px 10px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      display: inline-block;
+    }
+    button {
+      background: #6e8efb;
+      color: #fff;
+      flex: 1;
+      margin-right: 8px;
+    }
+    .theme-toggle {
+      background: #ccc;
+      color: #000;
+      flex: 0;
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 11px;
+      text-align: center;
+      opacity: 0.6;
+    }
+    a.button-link {
+      background: #555;
+      color: #fff;
+      margin-right: 4px;
+      flex: 1;
+    }
+  </style>
+</head>
+<body class="light">
+  <h2>AI Email Generator</h2>
+  <p>Draft & reply emails with AI right in your mail compose window.</p>
+
+  <label for="default-tone">Default Tone</label>
+  <select id="default-tone">
+    <option>Professional</option>
+    <option>Friendly</option>
+    <option>Apologetic</option>
+    <option>Formal</option>
+    <option>Casual</option>
+  </select>
+
+  <label for="theme">Theme</label>
+  <button class="theme-toggle" id="theme-toggle">Switch to Dark</button>
+
+  <div class="logs">
+    <div><strong>Last 5 Actions</strong></div>
+    <div id="log-list">No actions yet.</div>
+  </div>
+
+  <div class="controls">
+    <button id="save-btn">Save</button>
+    <a class="button-link" id="feedback-link">Feedback</a>
+  </div>
+
+  <div class="footer">
+    <a id="help-link">Help</a> • v1.3
+  </div>
+
+  <script>
+    const toneSelect = document.getElementById('default-tone');
+    const saveBtn = document.getElementById('save-btn');
+    const logList = document.getElementById('log-list');
+    const themeToggle = document.getElementById('theme-toggle');
+    const helpLink = document.getElementById('help-link');
+    const feedbackLink = document.getElementById('feedback-link');
+    const bodyEl = document.body;
+
+    // Load settings & logs
+    chrome.storage.sync.get(['defaultTone','theme','actionLogs'], prefs => {
+      if (prefs.defaultTone) toneSelect.value = prefs.defaultTone;
+      if (prefs.theme === 'dark') setDark(); 
+      renderLogs(prefs.actionLogs || []);
+    });
+
+    // Save default tone
+    saveBtn.onclick = () => {
+      chrome.storage.sync.set({ defaultTone: toneSelect.value }, () => {
+        alert('Default tone saved!');
+      });
+    };
+
+    // Theme toggle
+    themeToggle.onclick = () => {
+      const newTheme = bodyEl.classList.contains('light') ? 'dark' : 'light';
+      chrome.storage.sync.set({ theme: newTheme }, () => {
+        newTheme==='dark' ? setDark() : setLight();
+      });
+    };
+    function setDark() {
+      bodyEl.classList.replace('light','dark');
+      themeToggle.innerText = 'Switch to Light';
+    }
+    function setLight() {
+      bodyEl.classList.replace('dark','light');
+      themeToggle.innerText = 'Switch to Dark';
+    }
+
+    // Render last 5 actions
+    function renderLogs(logs) {
+      if (!logs.length) {
+        logList.innerText = 'No actions yet.';
+        return;
+      }
+      logList.innerHTML = '';
+      logs.slice(-5).reverse().forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        const ts = new Date(item.timestamp).toLocaleTimeString();
+        div.innerText = `${ts} — ${item.action}`;
+        logList.appendChild(div);
+      });
+    }
+
+    // Help & Feedback
+    helpLink.onclick = () => {
+      window.open('https://github.com/yourrepo/wiki', '_blank');
+    };
+    feedbackLink.onclick = () => {
+      window.open('https://github.com/yourrepo/issues', '_blank');
+    };
+  </script>
+</body>
+</html>

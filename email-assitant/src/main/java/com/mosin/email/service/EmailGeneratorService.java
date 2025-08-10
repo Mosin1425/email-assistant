@@ -1,6 +1,7 @@
 package com.mosin.email.service;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -63,7 +64,17 @@ public class EmailGeneratorService {
 	          .append("Avoid generating a subject line. ");
 
 	    if (StringUtils.isNotEmpty(emailRequestDto.getTone())) {
-	        prompt.append("Use a ").append(emailRequestDto.getTone()).append(" tone throughout the response. ");
+	        Map<String, String> toneInstructions = Map.of(
+	            "Professional", "Use a concise, respectful, and formal tone suitable for workplace communication. ",
+	            "Friendly", "Use a warm, conversational, and casual tone, like speaking to a colleague. ",
+	            "Apologetic", "Use a polite and understanding tone that sincerely conveys an apology. ",
+	            "Formal", "Use structured, business-like language with no contractions. ",
+	            "Casual", "Use relaxed and informal language as if chatting informally. "
+	        );
+
+	        String tonePrompt = toneInstructions.getOrDefault(emailRequestDto.getTone(), 
+	                "Use a polite and context-aware tone. ");
+	        prompt.append(tonePrompt);
 	    }
 
 	    prompt.append("Respond directly to the message content. ")
@@ -76,6 +87,7 @@ public class EmailGeneratorService {
 
 	    return prompt.toString();
 	}
+
 
 	
 	private String callGemini(String prompt) {
